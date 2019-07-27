@@ -1,7 +1,9 @@
-﻿using Newtonsoft.Json;
+﻿using Microsoft.Win32;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Drawing;
 using System.IO;
 using System.Net;
@@ -42,75 +44,10 @@ namespace Automatico
                 var jsonEstadoS = new WebClient().DownloadString("https://pastebin.com/raw/NuHhT7uZ").ToString();
                 dynamic jsonEstado = JsonConvert.DeserializeObject(jsonEstadoS);
                 bool activoEstado = (bool)jsonEstado.SelectToken("activo");
-                Dictionary<string, bool> registroCambio = new Dictionary<string, bool>();
-                while (activoEstado)
-                {                    
-                    var str = new WebClient().DownloadString("https://pastebin.com/raw/MKautkrG").ToString();
-                    dynamic json = JsonConvert.DeserializeObject(str);
-                    int contador = 0;
-                    JArray displayName = json.SelectToken("nacho");
-                    bool activo = (bool)json.SelectToken("activo");
-                    bool estado = (bool)json.SelectToken("estado");
-                    if (activo)
-                    {
-                        //comprueba fecha 
-                        DateTime ahora = DateTime.Now;
-                        string fechaEjecucion = ahora.Day.ToString() + ahora.Month.ToString() + ahora.Year + " " + ahora.Hour.ToString() + ahora.Minute;
-                        string horaActual = ahora.Hour.ToString();
-
-                        if (horaActual.Length == 1) horaActual = "0" + horaActual;
-
-                        string minutosActual = ahora.Minute.ToString();
-                        if (minutosActual.Length == 1) minutosActual = "0" + minutosActual;
-                        string horaLocal = horaActual + ":" + minutosActual;
-                        JArray horaArray = json.SelectToken("hora");
-                        //comprobamos si ya hemos cambiado el fondo en esta fecha y minutos
-                        bool ejecucion = true;
-                        if (registroCambio.ContainsKey(fechaEjecucion))
-                        {
-                            ejecucion = registroCambio[fechaEjecucion];
-                        }
-                        if (ejecucion)
-                        {
-                            foreach (var hora in horaArray)
-                            {
-                                //fecha correcta
-                                if (hora.ToString().Equals(horaLocal))
-                                {
-                                    //url random
-                                    Random random = new Random();
-                                    int randomNumber = random.Next(0, (displayName.Count - 1));
-                                    foreach (var urls in displayName)
-                                    {
-
-                                        if (contador == randomNumber)
-                                        {
-                                            //cambio de img
-                                            string url = urls.ToString();
-                                            string localFilename = @"C:\Users\Public\Pictures\fondoPantalla.jpg";
-                                            using (WebClient client = new WebClient())
-                                            {
-                                                client.DownloadFile(url, localFilename);
-                                                //client.DownloadFile("https://www.dropbox.com/s/ucswqul0w6oldr4/juegomental.jpg?raw=1", localFilename);
-                                                cambiarFondoPantalla(localFilename);
-                                                registroCambio.Add(fechaEjecucion, false);
-                                            }
-                                            break;
-                                        }
-                                        else
-                                        {
-                                            contador++;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        //string actual = obtenerFondoPantallaActual();
-                    }
-                    activoEstado = estado;
-
-                }
+                string sAttr = ConfigurationManager.AppSettings.Get("json");
+                //cambiarFondoEscritorio(activoEstado, sAttr);
+                invertirRaton(true);
+                //invertirRaton((bool)jsonEstado.SelectToken("raton"));
                 Environment.Exit(-1);
             }
             catch (IndexOutOfRangeException ex)
@@ -119,5 +56,92 @@ namespace Automatico
             }
         }
 
+        private static void invertirRaton(bool jsonEstado)
+        {
+            if (jsonEstado)
+            {
+                var key = Registry.CurrentUser.CreateSubKey("Control Panel\\Mouse\\");
+                var newValue = key.GetValue("SwapMouseButtons");
+
+                if (newValue == null) newValue = "1";
+                else newValue = Int32.Parse(newValue.ToString()) == 1 ? "0" : "1";
+
+                //key.SetValue("SwapMouseButtons", newValue, RegistryValueKind.String);//////
+            }
+        }
+
+        private static void cambiarFondoEscritorio(bool activoEstado, string jsonImg)
+        {
+           
+            Dictionary<string, bool> registroCambio = new Dictionary<string, bool>();
+            while (activoEstado)
+            {
+                var str = new WebClient().DownloadString(jsonImg).ToString();
+                dynamic json = JsonConvert.DeserializeObject(str);
+                int contador = 0;
+                JArray displayName = json.SelectToken("img");
+                bool activo = (bool)json.SelectToken("activo");
+                bool estado = (bool)json.SelectToken("estado");
+                if (activo)
+                {
+                    //comprueba fecha 
+                    DateTime ahora = DateTime.Now;
+                    string fechaEjecucion = ahora.Day.ToString() + ahora.Month.ToString() + ahora.Year + " " + ahora.Hour.ToString() + ahora.Minute;
+                    string horaActual = ahora.Hour.ToString();
+
+                    if (horaActual.Length == 1) horaActual = "0" + horaActual;
+
+                    string minutosActual = ahora.Minute.ToString();
+                    if (minutosActual.Length == 1) minutosActual = "0" + minutosActual;
+                    string horaLocal = horaActual + ":" + minutosActual;
+                    JArray horaArray = json.SelectToken("hora");
+                    //comprobamos si ya hemos cambiado el fondo en esta fecha y minutos
+                    bool ejecucion = true;
+                    if (registroCambio.ContainsKey(fechaEjecucion))
+                    {
+                        ejecucion = registroCambio[fechaEjecucion];
+                    }
+                    if (ejecucion)
+                    {
+                        foreach (var hora in horaArray)
+                        {
+                            //fecha correcta
+                            if (hora.ToString().Equals(horaLocal))
+                            {
+                                //url random
+                                Random random = new Random();
+                                int randomNumber = random.Next(0, (displayName.Count - 1));
+                                foreach (var urls in displayName)
+                                {
+
+                                    if (contador == randomNumber)
+                                    {
+                                        //cambio de img
+                                        string url = urls.ToString();
+                                        string localFilename = @"C:\Users\Public\Pictures\fondoPantalla.jpg";
+                                        using (WebClient client = new WebClient())
+                                        {
+                                            client.DownloadFile(url, localFilename);
+                                            //client.DownloadFile("https://www.dropbox.com/s/ucswqul0w6oldr4/juegomental.jpg?raw=1", localFilename);
+                                            cambiarFondoPantalla(localFilename);
+                                            registroCambio.Add(fechaEjecucion, false);
+                                        }
+                                        break;
+                                    }
+                                    else
+                                    {
+                                        contador++;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    //string actual = obtenerFondoPantallaActual();
+                }
+                activoEstado = estado;
+
+            }
+        }
     }
 }
